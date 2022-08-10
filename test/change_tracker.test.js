@@ -2,7 +2,7 @@
 
 import { expect } from 'chai';
 import { Sequelize, DataTypes, BelongsToMany } from 'sequelize';
-import ChangeTracker from '../index.js';
+import SequelizeChangeTracker from '../index.js';
 import { pause } from './lib.js';
 
 const sequelize = new Sequelize('sqlite::memory:', { logging: false });
@@ -55,7 +55,7 @@ describe( 'Change Tracker', function() {
         await sequelize.sync({ force: true });
 
         changeRegister = [];
-        ct = new ChangeTracker({ models: modelArr });
+        ct = new SequelizeChangeTracker({ models: modelArr });
         ct.on('data-changed', function( event ) {
             changeRegister.push( event );
         });

@@ -10,7 +10,7 @@ import { channel } from 'node:diagnostics_channel';
  *
  */
 
-class ChangeTracker extends EventEmitter {
+class SequelizeChangeTracker extends EventEmitter {
 
     constructor({ models }) {
 
@@ -196,7 +196,7 @@ class ChangeTracker extends EventEmitter {
 
         // we want the values, not the object
 
-        const subscriptionIds = ChangeTracker.genericOperations.includes( operation )
+        const subscriptionIds = SequelizeChangeTracker.genericOperations.includes( operation )
             ? [ ...this.subscriptionsByResource[ modelName ].generic ]
             : [ ...this.subscriptionsByResource[ modelName ][ instanceData.id ] ];
 
@@ -325,4 +325,4 @@ class ChangeTracker extends EventEmitter {
 }
 
 
-export default ChangeTracker;
+export default SequelizeChangeTracker;
