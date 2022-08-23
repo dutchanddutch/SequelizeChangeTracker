@@ -116,6 +116,11 @@ describe( 'Change Tracker', function() {
         expect( ct.subscriptionsByResource.B.generic[ 0 ] ).to.equal( 1 );
     });
 
+    it ( 'Should remove subscriptions', async function() {
+
+
+    })
+
     describe( 'On update', function() {
         it ( 'Should send direct specific change events', async function() {
 

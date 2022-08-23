@@ -1,16 +1,86 @@
-import { BelongsTo, HasOne, HasMany, BelongsToMany, Sequelize } from 'sequelize';
+import { BelongsTo, HasOne, HasMany, BelongsToMany, Sequelize, Model } from 'sequelize';
 import { EventEmitter } from 'node:events';
-import { channel } from 'node:diagnostics_channel';
+
+/**
+ * The name of a Sequelize model
+ * @typedef {String} ModelName
+ */
+
+/**
+ * Generic Universally Unique Identifier
+ * @typedef {String} GUID
+ */
+
+/**
+ * The id of an instance (Sequelize representation of a database table row)
+ * @typedef {String} InstanceId
+ */
+
+/**
+ * The id of a subscription
+ * @typedef {String} SubscriptionId
+ */
+
+/**
+ * Model event about the entire table
+ * @typedef {"create"|"delete"} GenericModelOperation
+ */
+
+/**
+ * Model event about a specific instance
+ * @typedef {"update"|"delete"} SpecificModelOperation
+ */
+
+/**
+ * ModelOperation
+ * @typedef {"create"|"update"|"delete"}
+ */
+
+/**
+ * The name of a Sequelize model
+ * @typedef {String} ModelName
+ */
+
+/** 
+ * Object describing a generic subscription
+ * @typedef {Object} GenericSubscriptionObject
+ * @property {ModelName} modelName
+ * @property {True} generic
+ * @property {SubscriptionId} subscriptionId
+ */
+
+/** 
+ * Object describing a specific subscription
+ * @typedef {Object} SpecificSubscriptionObject
+ * @property {ModelName} modelName
+ * @property {InstanceId} instanceId
+ * @property {SubscriptionId} subscriptionId
+ */
+
+/**
+ * The name of a field in a model
+ * @typedef {String} FieldName
+ */
+
+/**
+ * List of Sequelize models
+ * @typedef {Array<Sequelize.Model>} ModelList
+ */
 
 /**
  * @class
  * Extension for Sequelize that allows subscribing to changes on 
  * specific db table entries or to the generic table operations create
  * and delete.
- *
  */
 
 class SequelizeChangeTracker extends EventEmitter {
+
+    /**
+     * @constructor
+     * @param {Object} config 
+     * @param {ModelList} config.models - models to enable tracking on
+     */
 
     constructor({ models }) {
 
@@ -30,49 +100,46 @@ class SequelizeChangeTracker extends EventEmitter {
             // subscriptions should be taken into account on change
             // of a 'lower' model
 
-            //console.log( "\n\nModel:", model );
-
             for ( let association of Object.values( model.associations ) ) {
-                //console.log( association, association.source.name, '->', association.target.name)
                 if ( association instanceof BelongsTo || association instanceof BelongsToMany ) {
-                    //console.log( 'belongs' )
                     const dependingModelList = this.dependingModelMap[ association.source.name ];
                     const dependentModel = association.target.name;
                     if ( ! dependingModelList.includes( dependentModel )) {
-                        //console.log( 'add', dependentModel, 'to', dependingModelList )
                         dependingModelList.push( dependentModel );
                     }
                 }
                 else if ( association instanceof HasOne || association instanceof HasMany ) {
-                    //console.log( 'has' )
                     const dependingModelList = this.dependingModelMap[ association.target.name ];
                     const dependentModel = association.source.name;
                     if ( ! dependingModelList.includes( dependentModel )) {
-                        //console.log( 'add', dependentModel, 'to', dependingModelList )
                         dependingModelList.push( dependentModel );
                     }
                 }
             }
 
-            //this.genericSubscriptions[ modelName ] = ChangeTracker.makeSubObjTemplate();
+
+            // create a basic entry in the "subscriptions by resource" register
+
             this.subscriptionsByResource[ modelName ] = { generic: [] };
 
+
+            // add hooks for each operation
+            // https://github.com/sequelize/sequelize/blob/main/src/hooks.js
+            
             model.addHook(
                 'afterFind',
                 'yoctopus',
                 function( instance, options ) {
-                    changeTracker.addSubscriptionIfRequested( modelName, instance, options );
+                    changeTracker.#addSubscriptionIfRequested( modelName, instance, options );
                 }
             );
-
-            // https://github.com/sequelize/sequelize/blob/main/src/hooks.js
 
             model.addHook(
                 'afterCreate',
                 'yoctopus',
                 function( instance, options ) {
 
-                    changeTracker.addSubscriptionIfRequested( modelName, instance, options );
+                    changeTracker.#addSubscriptionIfRequested( modelName, instance, options );
 
                     changeTracker.notifySubscribers({ 
                         modelName, 
@@ -90,7 +157,7 @@ class SequelizeChangeTracker extends EventEmitter {
                     //console.log( 'after bulk create', options, instances );
                     for ( let instance of instances ) {
 
-                        changeTracker.addSubscriptionIfRequested( modelName, instance, options );
+                        changeTracker.#addSubscriptionIfRequested( modelName, instance, options );
 
                         changeTracker.notifySubscribers({ 
                             modelName, 
@@ -107,7 +174,7 @@ class SequelizeChangeTracker extends EventEmitter {
                 'yoctopus',
                 function( instance, options ) {
 
-                    changeTracker.addSubscriptionIfRequested( modelName, instance, options );
+                    changeTracker.#addSubscriptionIfRequested( modelName, instance, options );
 
                     changeTracker.notifySubscribers({ 
                         modelName, 
@@ -152,17 +219,59 @@ class SequelizeChangeTracker extends EventEmitter {
     }
 
 
+    /** @type {Array<GenericModelOperation>} */
+
     static genericOperations = [ 'create', 'delete' ];
 
 
+    /** @type {Array<SpecificModelOperation>} */
+
+    static specificOperations = [ 'update', 'delete' ];
+
+
+    /** @type {Array<ModelName>} */
+
     modelNames = [];
 
+
+    /**
+     * Map (object actually) of models (object value) that depend on the first model (object key) 
+     * @type {Object<ModelName,Array<ModelName>>} 
+     */
+
+    dependingModelMap = {};
+
+
+    /**
+     * One of two ways in which the class registers subscriptions. 
+     * This register is indexed by ModelName+InstanceId, or ModelName+"generic"
+     * if the subscription is for generic events
+     * @type {Object<ModelName,<InstanceId|"generic",Array<SubscriptionId>>}
+     */
+
     subscriptionsByResource = {};
+
+
+    /**
+     * One of two ways in which the class registers subscriptions.
+     * This register is indexed by SubscriptionId
+     * @type {Object<SubscriptionId,Array<GenericSubscriptionObject|SpecificSubscriptionObject>}
+     */
 
     subscriptionsById = {};
 
 
-    addSubscriptionIfRequested( modelName, instance, options ) {
+    /**
+     * Check the options object provided with a sequelize model method to check whether
+     * a subscription should be added
+     * @private
+     * @method
+     * @param {ModelName} modelName
+     * @param {Sequelize.Instance} instance
+     * @param {Object} options
+     */
+
+    #addSubscriptionIfRequested( modelName, instance, options ) {
 
         // instance argument can contain one data object, or an array of objects
 
@@ -189,16 +298,37 @@ class SequelizeChangeTracker extends EventEmitter {
         for ( let inst of iterableInstances ) {
             this.addSubscription({ modelName: inst.constructor.name, instanceId: inst.id, subscriptionId });
         }
-
     }
+
+
+    /**
+     * For some model event (operation) find the relevant subscription ids
+     * and emit a 'data-changed' event
+     * @method
+     * @public
+     * @param {Object} operationData
+     * @param {ModelName} operationData.modelName
+     * @param {ModelOperation} operationData.operation
+     * @param {Array<FieldName>} operationData.changedFields
+     * @param {Object<String,any>} operationData.instanceData
+     */
 
     notifySubscribers({ modelName, operation, changedFields, instanceData }) {
 
         // we want the values, not the object
+        
+        const genericSubIds = SequelizeChangeTracker.genericOperations.includes( operation )
+            ? [ ...this.subscriptionsByResource[ modelName ].generic ] 
+            : [];
 
-        const subscriptionIds = SequelizeChangeTracker.genericOperations.includes( operation )
-            ? [ ...this.subscriptionsByResource[ modelName ].generic ]
-            : [ ...this.subscriptionsByResource[ modelName ][ instanceData.id ] ];
+        const specificSubIds = SequelizeChangeTracker.specificOperations.includes( operation )
+            ? [ ...this.subscriptionsByResource[ modelName ][ instanceData.id ] ] 
+            : [];
+
+        // filter out duplicates
+        // they are possible, because delete is a generic and specific event
+        
+        const subscriptionIds = [ ...new Set( [ ...genericSubIds, ...specificSubIds ] ) ];
 
         //console.log( 'notif', modelName, operation, changedFields, instanceData, cascade );
 
@@ -228,12 +358,28 @@ class SequelizeChangeTracker extends EventEmitter {
     }
 
 
+    /**
+     * Remove all subscriptions for a given subscription id
+     * @method
+     * @public
+     * @param {SubscriptionId} subscriptionId
+     */
+
     removeSubscriptionAllModels( subscriptionId ) {
         for ( let subObj of this.subscriptionsById[ subscriptionId ] ) {
             this.removeSubscription( { subscriptionId, ...subObj } );
         }
     }
 
+
+    /**
+     * Find the indices in both registers of a certain subscription
+     * if it exists
+     * @method
+     * @public
+     * @param {GenericSubscriptionObject|SpecificSubscriptionObject} subscriptionObject
+     * @returns {Object<string,number>} indices (sbiIndex and sbrIndex are the indices in the register that is indexed by subscriptionId and resourceId respectively)
+     */
 
     findSubscriptionIndices({ subscriptionId, modelName, instanceId, generic }) {
 
@@ -250,6 +396,13 @@ class SequelizeChangeTracker extends EventEmitter {
     }
 
 
+    /**
+     * Remove a specific subscription from the registers
+     * @method
+     * @public
+     * @param {GenericSubscriptionObject|SpecificSubscriptionObject} subscriptionObject
+     */
+
     removeSubscription = function({ subscriptionId, modelName, instanceId, generic }) {
 
         const { sbiIndex, sbrIndex } = this.findSBIIndex({ subscriptionId, modelName, instanceId, generic });
@@ -265,6 +418,12 @@ class SequelizeChangeTracker extends EventEmitter {
         this.subscriptionsByResource[ modelName ][ modelProp ].splice( sbrIndex, 1 );
     }
 
+
+    /**
+     * Add a subscription to the registers
+     * @method
+     * @param {SpecificSubscriptionObject|GenericSubscriptionObject}
+     */
 
     addSubscription = function({ modelName, subscriptionId, instanceId }) {
 
@@ -319,7 +478,6 @@ class SequelizeChangeTracker extends EventEmitter {
     }
 
 
-    dependingModelMap = {};
 
 
 }
