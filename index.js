@@ -322,7 +322,7 @@ class SequelizeChangeTracker extends EventEmitter {
             : [];
 
         const specificSubIds = SequelizeChangeTracker.specificOperations.includes( operation )
-            ? [ ...this.subscriptionsByResource[ modelName ][ instanceData.id ] ] 
+            ? [ ...( this.subscriptionsByResource[ modelName ][ instanceData.id ] || [] ) ] 
             : [];
 
         // filter out duplicates
