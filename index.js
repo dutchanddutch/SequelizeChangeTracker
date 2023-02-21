@@ -366,7 +366,7 @@ class SequelizeChangeTracker extends EventEmitter {
      */
 
     removeSubscriptionAllModels( subscriptionId ) {
-        for ( let subObj of this.subscriptionsById[ subscriptionId ] ) {
+        for ( let subObj of (this.subscriptionsById[ subscriptionId ] || [] ) ) {
             this.removeSubscription( { subscriptionId, ...subObj } );
         }
     }
@@ -405,7 +405,7 @@ class SequelizeChangeTracker extends EventEmitter {
 
     removeSubscription = function({ subscriptionId, modelName, instanceId, generic }) {
 
-        const { sbiIndex, sbrIndex } = this.findSBIIndex({ subscriptionId, modelName, instanceId, generic });
+        const { sbiIndex, sbrIndex } = this.findSubscriptionIndices({ subscriptionId, modelName, instanceId, generic });
 
         if ( sbiIndex === -1 || sbrIndex === -1 ) {
             throw new Error( `Can't find subscription ${subscriptionId} on ${modelName} ${instanceId}` );
