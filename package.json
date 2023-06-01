@@ -1,6 +1,6 @@
 {
     "name": "sequelize-change-tracker",
-    "version": "0.5.3",
+    "version": "0.5.4",
     "description": "Wrapper around Sequelize hooks to help distribute changes to specific listeners (subscriptions).",
     "main": "index.js",
     "type": "module",
