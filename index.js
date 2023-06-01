@@ -104,14 +104,14 @@ class SequelizeChangeTracker extends EventEmitter {
                 if ( association instanceof BelongsTo || association instanceof BelongsToMany ) {
                     const dependingModelList = this.dependingModelMap[ association.source.name ];
                     const dependentModel = association.target.name;
-                    if ( ! dependingModelList.includes( dependentModel )) {
+                    if ( undefined === dependingModelList.find( dm => dm.name === dependentModel )) {
                         dependingModelList.push( { name: dependentModel, foreignKey: association.foreignKey } );
                     }
                 }
                 else if ( association instanceof HasOne || association instanceof HasMany ) {
                     const dependingModelList = this.dependingModelMap[ association.target.name ];
                     const dependentModel = association.source.name;
-                    if ( ! dependingModelList.includes( dependentModel )) {
+                    if (  undefined === dependingModelList.find( dm => dm.name === dependentModel )) {
                         dependingModelList.push( { name: dependentModel, foreignKey: association.foreignKey } );
                     }
                 }
