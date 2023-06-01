@@ -76,13 +76,16 @@ describe( 'Change Tracker', function() {
             expect( ct.dependingModelMap[ modelName ] ).to.be.an('array');
             switch ( modelName ) {
                 case 'A':
-                    expect( ct.dependingModelMap.A[0] ).to.equal( 'BelongsToManyARecip' );
+                    expect( ct.dependingModelMap.A[0] ).to.be.an( 'object' );
+                    expect( ct.dependingModelMap.A[0].name ).to.equal( 'BelongsToManyARecip' );
+                    expect( ct.dependingModelMap.A[0].foreignKey ).to.equal( 'AId' );
                     break;
                 case 'B':
                     expect( ct.dependingModelMap.B ).to.have.length( 0 );
                     break;
                 default:
-                    expect( ct.dependingModelMap[ modelName ][0] ).to.equal( 'A' );
+                    // multiple deps should have this
+                    expect( ct.dependingModelMap[ modelName ][0].name ).to.deep.equal( 'A' );
                     break;
             }
         }

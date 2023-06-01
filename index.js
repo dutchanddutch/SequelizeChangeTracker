@@ -105,14 +105,14 @@ class SequelizeChangeTracker extends EventEmitter {
                     const dependingModelList = this.dependingModelMap[ association.source.name ];
                     const dependentModel = association.target.name;
                     if ( ! dependingModelList.includes( dependentModel )) {
-                        dependingModelList.push( dependentModel );
+                        dependingModelList.push( { name: dependentModel, foreignKey: association.foreignKey } );
                     }
                 }
                 else if ( association instanceof HasOne || association instanceof HasMany ) {
                     const dependingModelList = this.dependingModelMap[ association.target.name ];
                     const dependentModel = association.source.name;
                     if ( ! dependingModelList.includes( dependentModel )) {
-                        dependingModelList.push( dependentModel );
+                        dependingModelList.push( { name: dependentModel, foreignKey: association.foreignKey } );
                     }
                 }
             }
@@ -333,9 +333,9 @@ class SequelizeChangeTracker extends EventEmitter {
         //console.log( 'notif', modelName, operation, changedFields, instanceData, cascade );
 
         for ( let dependingModel of this.dependingModelMap[ modelName ] ) {
-            const foreignKey = `${dependingModel}Id`;                                   // TODO TODO TODO TODO
+            const foreignKey = dependingModel.foreignKey; //  `${dependingModel}Id`;                                   // TODO TODO TODO TODO
             const dependingInstanceId = instanceData[ foreignKey ];
-            const dependingInstanceSubscriptions = this.subscriptionsByResource[ dependingModel ][ dependingInstanceId ];
+            const dependingInstanceSubscriptions = this.subscriptionsByResource[ dependingModel.name ][ dependingInstanceId ];
             if ( Array.isArray( dependingInstanceSubscriptions ) && dependingInstanceSubscriptions.length > 0 ) {
                 subscriptionIds.push( ...dependingInstanceSubscriptions );
             }
