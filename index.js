@@ -366,7 +366,8 @@ class SequelizeChangeTracker extends EventEmitter {
      */
 
     removeSubscriptionAllModels( subscriptionId ) {
-        for ( let subObj of (this.subscriptionsById[ subscriptionId ] || [] ) ) {
+        while(this.subscriptionsById[subscriptionId].length > 0) {
+            const subObj = this.subscriptionsById[subscriptionId][0];
             this.removeSubscription( { subscriptionId, ...subObj } );
         }
     }
