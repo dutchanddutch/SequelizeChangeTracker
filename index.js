@@ -221,7 +221,7 @@ class SequelizeChangeTracker extends EventEmitter {
 
     /** @type {Array<GenericModelOperation>} */
 
-    static genericOperations = [ 'create', 'delete' ];
+    static genericOperations = [ 'create', 'delete', 'update' ];
 
 
     /** @type {Array<SpecificModelOperation>} */
